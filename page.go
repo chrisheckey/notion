@@ -30,6 +30,7 @@ type PageParent struct {
 
 	PageID     *string `json:"page_id,omitempty"`
 	DatabaseID *string `json:"database_id,omitempty"`
+	Workspace  *bool   `json:"workspace,omitempty"`
 }
 
 // PageProperties are properties of a page whose parent is a page or a workspace.
@@ -96,6 +97,9 @@ type CreatePageParams struct {
 
 	// Optionally, children blocks are added to the page.
 	Children []Block
+
+	//
+	Workspace bool
 }
 
 type UpdatePageParams struct {
@@ -107,14 +111,24 @@ type UpdatePageParams struct {
 type ParentType string
 
 const (
-	ParentTypeDatabase ParentType = "database_id"
-	ParentTypePage     ParentType = "page_id"
+	ParentTypeDatabase  ParentType = "database_id"
+	ParentTypePage      ParentType = "page_id"
+	ParentTypeWorkspace ParentType = "workspace"
 )
 
 func (p CreatePageParams) Validate() error {
+
 	if p.ParentType == "" {
 		return errors.New("parent type is required")
 	}
+
+	if p.ParentType == ParentTypeWorkspace {
+		if p.Workspace == false {
+			return errors.New("workspace should be true")
+		}
+		return nil
+	}
+
 	if p.ParentID == "" {
 		return errors.New("parent ID is required")
 	}
@@ -137,10 +151,16 @@ func (p CreatePageParams) MarshalJSON() ([]byte, error) {
 
 	var parent PageParent
 
-	if p.DatabasePageProperties != nil {
-		parent.DatabaseID = &p.ParentID
-	} else if p.Title != nil {
-		parent.PageID = &p.ParentID
+	if p.Workspace == true {
+		workspace := true
+		parent.Workspace = &workspace
+		parent.Type = "workspace"
+	} else {
+		if p.DatabasePageProperties != nil {
+			parent.DatabaseID = &p.ParentID
+		} else if p.Title != nil {
+			parent.PageID = &p.ParentID
+		}
 	}
 
 	dto := CreatePageParamsDTO{
